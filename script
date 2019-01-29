@@ -1,0 +1,97 @@
+rm(list=ls())
+library(RSelenium)
+library(wdman)
+library(dplyr)
+
+WaitForElement <- function(driver, XPATH, using='xpath', inc=0.5, limit=30){
+  c=0
+  while(c<limit){
+    tryCatch(
+      {driver$findElement(using=using, XPATH)
+        return(1)},
+      error=function(e){
+        Sys.sleep(inc)
+      }
+    )
+    c=c+inc
+    # print(c)
+  }
+  driver$screenshot(file=paste0(getwd(), "/ERROR.png"))
+  return(0)
+}
+
+
+n_sorteo = 4282
+
+jugadores=c("jugador 1", "jugador 2", "jugador n")
+numeros_jugador1 = c(1, 2, 3, 4, 5, 6)
+numeros_jugador2 = c(2, 4, 11, 25, 38, 39)
+numeros_jugadorn = c(3, 6, 9, 12, 15, 18)
+
+data <- cbind(jugadores, rbind(numeros_jugador1, numeros_jugador2, numeros_jugadorn)) %>%
+              as.data.frame(., row.names=F) %>% 
+              setNames(c("nombre_jugador", paste0("num_", 1:6)))
+
+url <- "http://webapp.resultadoslotochile.com/"
+
+eCaps<- list(chomeOptions= list(prefs=list("profile.default_content_settings.popups"=0L)))
+rD <- rsDriver(verbose = FALSE, extraCapabilities=eCaps)
+remDr <- rD$client
+
+remDr$maxWindowSize()
+remDr$navigate(url)
+Sys.sleep(5)
+
+
+if(WaitForElement(remDr,'//*[@id="resultadosLoto"]/span[1]', using='xpath')){
+  n_string <-(remDr$findElement(using='xpath', '//*[@id="resultadosLoto"]/span[1]')$getElementText())
+}
+
+# Inicio Iteración k
+vars_numeros <- paste0("num_", 1:6)
+nombre_juego = c("Loto", "Revancha", "Desquite", "Ahora sí que sí", "Jubilazo #1", "Jubilazo #2","Jubilazo #3","Jubilazo #4","Jubilazo #5")
+resultados_full=list()
+resultado_juego = list()
+
+for(k in 1:nrow(data)){
+
+  for(i in 1:as.numeric(gsub("[^[:digit:].]", "",  n_string))){
+    seleccion <-remDr$findElement(using='xpath', paste0('//*[@id="resultadosLoto"]/select/option[',i,']'))
+    if(seleccion$getElementText()==n_sorteo){
+      seleccion$clickElement()
+      break
+    }
+  }
+  
+  
+  for(i in 1:length(vars_numeros)){
+    if(WaitForElement(remDr, paste0('//*[@id="resultadosLoto"]/table/tbody/tr/td[',i,']'),
+                      using='xpath')){
+      casilla_numero=remDr$findElement(using='css', paste0('#numero',i))
+      casilla_numero$clickElement()
+      casilla_numero$sendKeysToElement(list(as.character(data[k, vars_numeros[i]])))
+    }
+  }
+  
+  remDr$findElement(using = 'id', 'botonWeb')$clickElement()
+  
+  Sys.sleep(3)
+  
+  if(WaitForElement(remDr, '//*[@id="formulario"]/span[2]/b')){
+    fecha_sorteo <- remDr$findElement(using='xpath', '//*[@id="formulario"]/span[2]/b')$getElementText() %>% unlist()
+  }
+  
+  for(i in (1:(length(nombre_juego)+1))[-5] ){
+  resultado_juego[[i]] <- remDr$findElement(using='xpath', paste0('//*[@id="formulario"]/div[',i+2,']/span'))$getElementText()
+  }
+  
+  
+  resultados_full[[k]]=as.data.frame(do.call(cbind, resultado_juego))
+  
+  remDr$refresh()
+  Sys.sleep(3)
+}
+
+resultados_df=as.data.frame(do.call(rbind, resultados_full)) %>% setNames(nombre_juego)
+
+data_full <- data.frame(data, resultados_df)
