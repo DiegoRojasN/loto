@@ -1,3 +1,0 @@
-# loto
-
-cómo escribir acá
