@@ -20,9 +20,10 @@ WaitForElement <- function(driver, XPATH, using='xpath', inc=0.5, limit=30){
   return(0)
 }
 
-
+# Reemplazar con el número de sorteo a consultar
 n_sorteo = 4282
 
+# Agregar la información de nombre de jugador y números de cada uno
 jugadores=c("jugador 1", "jugador 2", "jugador n")
 numeros_jugador1 = c(1, 2, 3, 4, 5, 6)
 numeros_jugador2 = c(2, 4, 11, 25, 38, 39)
@@ -47,7 +48,7 @@ if(WaitForElement(remDr,'//*[@id="resultadosLoto"]/span[1]', using='xpath')){
   n_string <-(remDr$findElement(using='xpath', '//*[@id="resultadosLoto"]/span[1]')$getElementText())
 }
 
-# Inicio Iteración k
+# Inicio Iteración por cada jugador
 vars_numeros <- paste0("num_", 1:6)
 nombre_juego = c("Loto", "Revancha", "Desquite", "Ahora sí que sí", "Jubilazo #1", "Jubilazo #2","Jubilazo #3","Jubilazo #4","Jubilazo #5")
 resultados_full=list()
@@ -85,7 +86,7 @@ for(k in 1:nrow(data)){
   resultado_juego[[i]] <- remDr$findElement(using='xpath', paste0('//*[@id="formulario"]/div[',i+2,']/span'))$getElementText()
   }
   
-  
+  # Almancenamiento resultado por jugador
   resultados_full[[k]]=as.data.frame(do.call(cbind, resultado_juego))
   
   remDr$refresh()
@@ -94,4 +95,5 @@ for(k in 1:nrow(data)){
 
 resultados_df=as.data.frame(do.call(rbind, resultados_full)) %>% setNames(nombre_juego)
 
+# Consolidación de resultados
 data_full <- data.frame(data, resultados_df)
